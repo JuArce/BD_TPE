@@ -75,7 +75,7 @@ DECLARE
 
 BEGIN
     IF (months = 0) THEN
-        RAISE NOTICE 'La cantidad de meses anteriores debe ser mayor a 0';
+        RAISE WARNING 'La cantidad de meses anteriores debe ser mayor a 0';
         RETURN NULL;
     end if;
 
@@ -103,3 +103,54 @@ SELECT MedianaMargenMovil(to_date('2011-09-01', 'YYYY-MM-DD'), 5);
 
 -- Debe dar mensaje de error
 SELECT MedianaMargenMovil(to_date('2012-11-01', 'YYYY-MM-DD'), 0);
+
+
+CREATE OR REPLACE FUNCTION ReporteVentas(IN years INTEGER) RETURNS NUMERIC AS
+$$
+DECLARE
+    currentYear integer;
+    flag        boolean;
+    i           record;
+
+BEGIN
+    IF (years = 0) THEN
+        RAISE WARNING 'La cantidad de años debe ser mayor a 0';
+        RETURN NULL;
+    end if;
+
+    SELECT min(extract(year FROM definitiva.Sales_Date))
+    INTO currentYear
+    FROM definitiva;
+
+    RAISE NOTICE '      HISTORIC SALES REPORT       ';
+    RAISE NOTICE 'YEAR      CATEGORY        REVENUE     COST        MARGIN';--2 TAB ENTRE COLUMNAS
+    WHILE(years > 0)
+        LOOP
+            flag := TRUE;
+            FOR i IN SELECT definitiva.Customer_Type,
+                            SUM(definitiva.Revenue)                        AS Revenue,
+                            SUM(definitiva.Cost)                           AS Cost,
+                            SUM(definitiva.Revenue) - SUM(definitiva.Cost) AS Margin
+                     FROM definitiva
+                     WHERE extract(year from definitiva.Sales_Date) = currentYear
+                     GROUP BY definitiva.Customer_Type
+                LOOP
+                    IF (flag) THEN
+                        RAISE NOTICE '%      Customer Type: %        %       %       %', currentYear, i.Customer_Type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
+                        flag := FALSE;
+                    ELSE
+                        RAISE NOTICE '----      Customer Type: %        %       %       %', i.Customer_Type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
+                    END IF;
+
+                END LOOP;
+
+            years := years - 1;
+            currentYear := currentYear + 1;
+        END LOOP;
+
+    RETURN 0;
+END;
+$$ LANGUAGE plpgsql
+    RETURNS NULL ON NULL INPUT;
+
+SELECT ReporteVentas(2);
