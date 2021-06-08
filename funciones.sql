@@ -84,7 +84,7 @@ DECLARE
 
 BEGIN
     IF (months = 0) THEN
-        RAISE WARNING 'La cantidad de meses anteriores debe ser mayor a 0';
+        RAISE WARNING 'La cantidad de meses anteriores debe ser mayor a 0.';
         RETURN NULL;
     end if;
 
@@ -149,13 +149,18 @@ DECLARE
                            ORDER BY definitiva.Sales_channel;
 BEGIN
     IF (years = 0) THEN
-        RAISE WARNING 'La cantidad de años debe ser mayor a 0';
+        RAISE WARNING 'La cantidad de años debe ser mayor a 0.';
         RETURN;
     end if;
 
     SELECT min(extract(year FROM definitiva.Sales_date))
     INTO currentYear
     FROM definitiva;
+
+    IF (currentYear IS NULL) THEN
+        RAISE WARNING 'No existen datos para los parámetros ingresados.';
+        RETURN;
+    end if;
 
     RAISE NOTICE '-----------------------HISTORIC SALES REPORT----------------------------';
     RAISE NOTICE '------------------------------------------------------------------------';
@@ -219,8 +224,11 @@ BEGIN
             END LOOP;
             CLOSE salesCursor;
 
-            RAISE NOTICE '-------------------------------      %   %   %',CAST(totalRevenue AS integer),CAST(totalCost AS integer), CAST(totalMargin AS integer);
-            RAISE NOTICE '------------------------------------------------------------------------';
+            IF (totalRevenue != 0 AND totalCost != 0) THEN
+                RAISE NOTICE '-------------------------------      %   %   %',CAST(totalRevenue AS integer),CAST(totalCost AS integer), CAST(totalMargin AS integer);
+                RAISE NOTICE '------------------------------------------------------------------------';
+            END IF;
+
             years := years - 1;
             currentYear := currentYear + 1;
         END LOOP;
@@ -244,7 +252,7 @@ END;
 $$ LANGUAGE plpgsql
     RETURNS NULL ON NULL INPUT;
 
-SELECT ReporteVentas(2);
+SELECT ReporteVentas(3);
 
 -- Drops
 DROP TABLE intermedia;
