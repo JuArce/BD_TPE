@@ -70,7 +70,7 @@ EXECUTE PROCEDURE fillTable();
 -- Copy
 
 COPY intermedia (Quarter, Month, Week, Product_type, Territory, Sales_channel, Customer_type, Revenue, Cost)
-    FROM 'SalesbyRegion.csv'
+    FROM '/Users/roberto-j-catalan/Base de Datos 1/BD_TPE/SalesbyRegion.csv'
     DELIMITER ','
     CSV HEADER;
 
