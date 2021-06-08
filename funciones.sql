@@ -108,12 +108,12 @@ DROP FUNCTION ReporteVentas(years INTEGER);
 CREATE OR REPLACE FUNCTION ReporteVentas(IN years INTEGER) RETURNS VOID AS
 $$
 DECLARE
-    currentYear integer;
-    flag        boolean;
-    i           record;
-    totalCost       float;
-    totalRevenue       float;
-    totalMargin       float;
+    currentYear  integer;
+    flag         boolean;
+    i            record;
+    totalCost    float;
+    totalRevenue float;
+    totalMargin  float;
 BEGIN
     IF (years = 0) THEN
         RAISE WARNING 'La cantidad de años debe ser mayor a 0';
@@ -140,7 +140,7 @@ BEGIN
                      FROM definitiva
                      WHERE extract(year from definitiva.Sales_Date) = currentYear
                      GROUP BY definitiva.Customer_Type
-                    ORDER BY definitiva.Customer_Type
+                     ORDER BY definitiva.Customer_Type
                 LOOP
                     IF (flag) THEN
                         RAISE NOTICE '%      Customer Type: %        %       %       %', currentYear, i.Customer_Type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
@@ -159,7 +159,7 @@ BEGIN
                      FROM definitiva
                      WHERE extract(year from definitiva.Sales_Date) = currentYear
                      GROUP BY definitiva.Product_type
-                    ORDER BY definitiva.Product_type
+                     ORDER BY definitiva.Product_type
                 LOOP
                     IF (flag) THEN
                         RAISE NOTICE '%      Product Type: %        %       %       %', currentYear, i.Product_type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
@@ -176,7 +176,7 @@ BEGIN
                      FROM definitiva
                      WHERE extract(year from definitiva.Sales_Date) = currentYear
                      GROUP BY definitiva.Sales_Channel
-                    ORDER BY definitiva.Sales_Channel
+                     ORDER BY definitiva.Sales_Channel
                 LOOP
                     IF (flag) THEN
                         RAISE NOTICE '%      Sales Channel: %        %       %       %', currentYear, i.Sales_Channel, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
@@ -195,4 +195,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql
     RETURNS NULL ON NULL INPUT;
+
 SELECT ReporteVentas(2);
+
+-- Drops
+DROP TABLE intermedia;
+DROP TABLE definitiva;
+--------
+DROP FUNCTION MedianaMargenMovil(date DATE, months INTEGER);
+DROP FUNCTION ReporteVentas(years INTEGER);
+DROP FUNCTION fillTable;
+--------
+DROP TRIGGER fillTableTrigger ON intermedia;
