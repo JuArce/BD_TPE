@@ -25,6 +25,7 @@ CREATE TABLE definitiva
     Cost          float,
     PRIMARY KEY (Sales_Date, Product_type, Sales_Channel, Customer_type)
 );
+--------------------------------------
 
 --Funciones trigger
 
@@ -65,10 +66,13 @@ CREATE TRIGGER fillTableTrigger
     FOR EACH ROW
 EXECUTE PROCEDURE fillTable();
 
-COPY intermedia(Quarter, Month, Week, Product_type, Territory, Sales_Channel, Customer_type, Revenue, Cost)
-FROM '/Users/roberto-j-catalan/Base de Datos 1/BD_TPE/SalesByRegion.csv'
-DELIMITER ','
-CSV HEADER;
+--------------------------------------
+-- Copy
+
+COPY intermedia (Quarter, Month, Week, Product_type, Territory, Sales_Channel, Customer_type, Revenue, Cost)
+    FROM 'SalesbyRegion.csv'
+    DELIMITER ','
+    CSV HEADER;
 
 --Funciones
 
@@ -119,30 +123,30 @@ DECLARE
     totalCost    float;
     totalRevenue float;
     totalMargin  float;
-    customerCursor    CURSOR FOR SELECT definitiva.Customer_Type,
-                            SUM(definitiva.Revenue)                        AS Revenue,
-                            SUM(definitiva.Cost)                           AS Cost,
-                            SUM(definitiva.Revenue) - SUM(definitiva.Cost) AS Margin
-                     FROM definitiva
-                     WHERE extract(year from definitiva.Sales_Date) = currentYear
-                     GROUP BY definitiva.Customer_Type
-                     ORDER BY definitiva.Customer_Type;
-    productCursor   CURSOR FOR SELECT definitiva.Product_type,
-                            SUM(definitiva.Revenue)                        AS Revenue,
-                            SUM(definitiva.Cost)                           AS Cost,
-                            SUM(definitiva.Revenue) - SUM(definitiva.Cost) AS Margin
-                     FROM definitiva
-                     WHERE extract(year from definitiva.Sales_Date) = currentYear
-                     GROUP BY definitiva.Product_type
-                     ORDER BY definitiva.Product_type;
-    salesCursor     CURSOR FOR SELECT definitiva.Sales_Channel,
-                            SUM(definitiva.Revenue)                        AS Revenue,
-                            SUM(definitiva.Cost)                           AS Cost,
-                            SUM(definitiva.Revenue) - SUM(definitiva.Cost) AS Margin
-                     FROM definitiva
-                     WHERE extract(year from definitiva.Sales_Date) = currentYear
-                     GROUP BY definitiva.Sales_Channel
-                     ORDER BY definitiva.Sales_Channel;
+    customerCursor CURSOR FOR SELECT definitiva.Customer_Type,
+                                     SUM(definitiva.Revenue)                        AS Revenue,
+                                     SUM(definitiva.Cost)                           AS Cost,
+                                     SUM(definitiva.Revenue) - SUM(definitiva.Cost) AS Margin
+                              FROM definitiva
+                              WHERE extract(year from definitiva.Sales_Date) = currentYear
+                              GROUP BY definitiva.Customer_Type
+                              ORDER BY definitiva.Customer_Type;
+    productCursor CURSOR FOR SELECT definitiva.Product_type,
+                                    SUM(definitiva.Revenue)                        AS Revenue,
+                                    SUM(definitiva.Cost)                           AS Cost,
+                                    SUM(definitiva.Revenue) - SUM(definitiva.Cost) AS Margin
+                             FROM definitiva
+                             WHERE extract(year from definitiva.Sales_Date) = currentYear
+                             GROUP BY definitiva.Product_type
+                             ORDER BY definitiva.Product_type;
+    salesCursor CURSOR FOR SELECT definitiva.Sales_Channel,
+                                  SUM(definitiva.Revenue)                        AS Revenue,
+                                  SUM(definitiva.Cost)                           AS Cost,
+                                  SUM(definitiva.Revenue) - SUM(definitiva.Cost) AS Margin
+                           FROM definitiva
+                           WHERE extract(year from definitiva.Sales_Date) = currentYear
+                           GROUP BY definitiva.Sales_Channel
+                           ORDER BY definitiva.Sales_Channel;
 BEGIN
     IF (years = 0) THEN
         RAISE WARNING 'La cantidad de años debe ser mayor a 0';
@@ -162,60 +166,62 @@ BEGIN
             totalRevenue := 0;
             totalMargin := 0;
             flag := TRUE;
+
             OPEN customerCursor;
             LOOP
                 FETCH customerCursor INTO i;
                 EXIT WHEN NOT FOUND;
-                    IF (flag) THEN
-                        RAISE NOTICE '%      Customer Type: %        %       %       %', currentYear, i.Customer_Type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
-                        flag := FALSE;
-                    ELSE
-                        RAISE NOTICE '----      Customer Type: %        %       %       %', i.Customer_Type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
-                    END IF;
-                    totalCost := totalCost + i.Cost;
-                    totalRevenue := totalRevenue + i.Revenue;
-                    totalMargin := totalMargin + i.Margin;
-                END LOOP;
+                IF (flag) THEN
+                    RAISE NOTICE '%      Customer Type: %        %       %       %', currentYear, i.Customer_Type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
+                    flag := FALSE;
+                ELSE
+                    RAISE NOTICE '----      Customer Type: %        %       %       %', i.Customer_Type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
+                END IF;
+                totalCost := totalCost + i.Cost;
+                totalRevenue := totalRevenue + i.Revenue;
+                totalMargin := totalMargin + i.Margin;
+            END LOOP;
             CLOSE customerCursor;
+
             OPEN productCursor;
+            LOOP
+                FETCH productCursor INTO I;
+                EXIT WHEN NOT FOUND;
+                IF (flag) THEN
+                    RAISE NOTICE '%      Product Type: %        %       %       %', currentYear, i.Product_type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
+                    flag := FALSE;
+                ELSE
+                    RAISE NOTICE '----      Product Type: %        %       %       %', i.Product_type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
+                END IF;
 
-                LOOP
-                    FETCH productCursor INTO I;
-                    EXIT WHEN NOT FOUND;
-                    IF (flag) THEN
-                        RAISE NOTICE '%      Product Type: %        %       %       %', currentYear, i.Product_type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
-                        flag := FALSE;
-                    ELSE
-                        RAISE NOTICE '----      Product Type: %        %       %       %', i.Product_type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
-                    END IF;
-
-                END LOOP;
+            END LOOP;
             CLOSE productCursor;
-            OPEN salesCursor;
-                LOOP
-                    FETCH salesCursor INTO I;
-                    EXIT WHEN NOT FOUND;
-                    IF (flag) THEN
-                        RAISE NOTICE '%      Sales Channel: %        %       %       %', currentYear, i.Sales_Channel, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
-                        flag := FALSE;
-                    ELSE
-                        RAISE NOTICE '----      Sales Channel: %        %       %       %', i.Sales_Channel, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
-                    END IF;
 
-                END LOOP;
+            OPEN salesCursor;
+            LOOP
+                FETCH salesCursor INTO I;
+                EXIT WHEN NOT FOUND;
+                IF (flag) THEN
+                    RAISE NOTICE '%      Sales Channel: %        %       %       %', currentYear, i.Sales_Channel, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
+                    flag := FALSE;
+                ELSE
+                    RAISE NOTICE '----      Sales Channel: %        %       %       %', i.Sales_Channel, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
+                END IF;
+
+            END LOOP;
             CLOSE salesCursor;
+
             RAISE NOTICE '----       %       %       %',CAST(totalRevenue AS integer),CAST(totalCost AS integer), CAST(totalMargin AS integer);
             years := years - 1;
             currentYear := currentYear + 1;
         END LOOP;
-
-
     RETURN;
 END;
 $$ LANGUAGE plpgsql
     RETURNS NULL ON NULL INPUT;
 
 SELECT ReporteVentas(2);
+
 -- Drops
 DROP TABLE intermedia;
 DROP TABLE definitiva;
