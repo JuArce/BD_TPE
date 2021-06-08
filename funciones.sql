@@ -104,18 +104,20 @@ SELECT MedianaMargenMovil(to_date('2011-09-01', 'YYYY-MM-DD'), 5);
 -- Debe dar mensaje de error
 SELECT MedianaMargenMovil(to_date('2012-11-01', 'YYYY-MM-DD'), 0);
 
-
-CREATE OR REPLACE FUNCTION ReporteVentas(IN years INTEGER) RETURNS NUMERIC AS
+DROP FUNCTION ReporteVentas(years INTEGER);
+CREATE OR REPLACE FUNCTION ReporteVentas(IN years INTEGER) RETURNS VOID AS
 $$
 DECLARE
     currentYear integer;
     flag        boolean;
     i           record;
-
+    totalCost       float;
+    totalRevenue       float;
+    totalMargin       float;
 BEGIN
     IF (years = 0) THEN
         RAISE WARNING 'La cantidad de años debe ser mayor a 0';
-        RETURN NULL;
+        RETURN;
     end if;
 
     SELECT min(extract(year FROM definitiva.Sales_Date))
@@ -124,8 +126,12 @@ BEGIN
 
     RAISE NOTICE '      HISTORIC SALES REPORT       ';
     RAISE NOTICE 'YEAR      CATEGORY        REVENUE     COST        MARGIN';--2 TAB ENTRE COLUMNAS
+
     WHILE(years > 0)
         LOOP
+            totalCost := 0;
+            totalRevenue := 0;
+            totalMargin := 0;
             flag := TRUE;
             FOR i IN SELECT definitiva.Customer_Type,
                             SUM(definitiva.Revenue)                        AS Revenue,
@@ -134,6 +140,7 @@ BEGIN
                      FROM definitiva
                      WHERE extract(year from definitiva.Sales_Date) = currentYear
                      GROUP BY definitiva.Customer_Type
+                    ORDER BY definitiva.Customer_Type
                 LOOP
                     IF (flag) THEN
                         RAISE NOTICE '%      Customer Type: %        %       %       %', currentYear, i.Customer_Type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
@@ -141,16 +148,51 @@ BEGIN
                     ELSE
                         RAISE NOTICE '----      Customer Type: %        %       %       %', i.Customer_Type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
                     END IF;
+                    totalCost := totalCost + i.Cost;
+                    totalRevenue := totalRevenue + i.Revenue;
+                    totalMargin := totalMargin + i.Margin;
+                END LOOP;
+            FOR i IN SELECT definitiva.Product_type,
+                            SUM(definitiva.Revenue)                        AS Revenue,
+                            SUM(definitiva.Cost)                           AS Cost,
+                            SUM(definitiva.Revenue) - SUM(definitiva.Cost) AS Margin
+                     FROM definitiva
+                     WHERE extract(year from definitiva.Sales_Date) = currentYear
+                     GROUP BY definitiva.Product_type
+                    ORDER BY definitiva.Product_type
+                LOOP
+                    IF (flag) THEN
+                        RAISE NOTICE '%      Product Type: %        %       %       %', currentYear, i.Product_type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
+                        flag := FALSE;
+                    ELSE
+                        RAISE NOTICE '----      Product Type: %        %       %       %', i.Product_type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
+                    END IF;
 
                 END LOOP;
+            FOR i IN SELECT definitiva.Sales_Channel,
+                            SUM(definitiva.Revenue)                        AS Revenue,
+                            SUM(definitiva.Cost)                           AS Cost,
+                            SUM(definitiva.Revenue) - SUM(definitiva.Cost) AS Margin
+                     FROM definitiva
+                     WHERE extract(year from definitiva.Sales_Date) = currentYear
+                     GROUP BY definitiva.Sales_Channel
+                    ORDER BY definitiva.Sales_Channel
+                LOOP
+                    IF (flag) THEN
+                        RAISE NOTICE '%      Sales Channel: %        %       %       %', currentYear, i.Sales_Channel, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
+                        flag := FALSE;
+                    ELSE
+                        RAISE NOTICE '----      Sales Channel: %        %       %       %', i.Sales_Channel, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
+                    END IF;
 
+                END LOOP;
+            RAISE NOTICE '----       %       %       %',CAST(totalRevenue AS integer),CAST(totalCost AS integer), CAST(totalMargin AS integer);
             years := years - 1;
             currentYear := currentYear + 1;
         END LOOP;
 
-    RETURN 0;
+    RETURN;
 END;
 $$ LANGUAGE plpgsql
     RETURNS NULL ON NULL INPUT;
-
 SELECT ReporteVentas(2);
