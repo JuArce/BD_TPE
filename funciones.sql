@@ -7,23 +7,23 @@ CREATE TABLE intermedia
     Week          text not null,
     Product_type  text not null,
     Territory     text not null,
-    Sales_Channel text not null,
+    Sales_channel text not null,
     Customer_type text not null,
     Revenue       float,
     Cost          float,
-    PRIMARY KEY (Quarter, Month, Week, Product_type, Sales_Channel, Customer_type)
+    PRIMARY KEY (Quarter, Month, Week, Product_type, Sales_channel, Customer_type)
 );
 set datestyle to YMD;
 CREATE TABLE definitiva
 (
-    Sales_Date    date not null,
+    Sales_date    date not null,
     Product_type  text not null,
     Territory     text not null,
-    Sales_Channel text not null,
-    Customer_Type text not null,
+    Sales_channel text not null,
+    Customer_type text not null,
     Revenue       float,
     Cost          float,
-    PRIMARY KEY (Sales_Date, Product_type, Sales_Channel, Customer_type)
+    PRIMARY KEY (Sales_date, Product_type, Sales_channel, Customer_type)
 );
 --------------------------------------
 
@@ -53,8 +53,8 @@ BEGIN
     auxStr := concat(auxYear, auxMonth, auxDay);
     auxDate := to_date(auxStr, 'YYYYMMDD');
 
-    INSERT INTO definitiva(Sales_Date, Product_type, Territory, Sales_Channel, Customer_type, Revenue, Cost)
-    VALUES (auxDate, new.Product_type, new.Territory, new.Sales_Channel, new.Customer_type, new.Revenue, new.Cost);
+    INSERT INTO definitiva(Sales_date, Product_type, Territory, Sales_channel, Customer_type, Revenue, Cost)
+    VALUES (auxDate, new.Product_type, new.Territory, new.Sales_channel, new.Customer_type, new.Revenue, new.Cost);
     RETURN new;
 END
 
@@ -69,7 +69,7 @@ EXECUTE PROCEDURE fillTable();
 --------------------------------------
 -- Copy
 
-COPY intermedia (Quarter, Month, Week, Product_type, Territory, Sales_Channel, Customer_type, Revenue, Cost)
+COPY intermedia (Quarter, Month, Week, Product_type, Territory, Sales_channel, Customer_type, Revenue, Cost)
     FROM 'SalesbyRegion.csv'
     DELIMITER ','
     CSV HEADER;
@@ -93,8 +93,8 @@ BEGIN
     SELECT percentile_cont(0.5) within group (order by (Revenue - Cost))
     INTO media
     FROM definitiva
-    WHERE sales_date > minDate
-      AND sales_date <= date;
+    WHERE Sales_date > minDate
+      AND Sales_date <= date;
 
     RETURN media;
 END;
@@ -118,64 +118,68 @@ CREATE OR REPLACE FUNCTION ReporteVentas(IN years INTEGER) RETURNS VOID AS
 $$
 DECLARE
     currentYear  integer;
-    flag         boolean;
+    firstPrint   boolean;
     i            record;
     totalCost    float;
     totalRevenue float;
     totalMargin  float;
-    customerCursor CURSOR FOR SELECT definitiva.Customer_Type,
+    customerCursor CURSOR FOR SELECT definitiva.Customer_type,
                                      SUM(definitiva.Revenue)                        AS Revenue,
                                      SUM(definitiva.Cost)                           AS Cost,
                                      SUM(definitiva.Revenue) - SUM(definitiva.Cost) AS Margin
                               FROM definitiva
-                              WHERE extract(year from definitiva.Sales_Date) = currentYear
-                              GROUP BY definitiva.Customer_Type
-                              ORDER BY definitiva.Customer_Type;
+                              WHERE extract(year from definitiva.Sales_date) = currentYear
+                              GROUP BY definitiva.Customer_type
+                              ORDER BY definitiva.Customer_type;
     productCursor CURSOR FOR SELECT definitiva.Product_type,
                                     SUM(definitiva.Revenue)                        AS Revenue,
                                     SUM(definitiva.Cost)                           AS Cost,
                                     SUM(definitiva.Revenue) - SUM(definitiva.Cost) AS Margin
                              FROM definitiva
-                             WHERE extract(year from definitiva.Sales_Date) = currentYear
+                             WHERE extract(year from definitiva.Sales_date) = currentYear
                              GROUP BY definitiva.Product_type
                              ORDER BY definitiva.Product_type;
-    salesCursor CURSOR FOR SELECT definitiva.Sales_Channel,
+    salesCursor CURSOR FOR SELECT definitiva.Sales_channel,
                                   SUM(definitiva.Revenue)                        AS Revenue,
                                   SUM(definitiva.Cost)                           AS Cost,
                                   SUM(definitiva.Revenue) - SUM(definitiva.Cost) AS Margin
                            FROM definitiva
-                           WHERE extract(year from definitiva.Sales_Date) = currentYear
-                           GROUP BY definitiva.Sales_Channel
-                           ORDER BY definitiva.Sales_Channel;
+                           WHERE extract(year from definitiva.Sales_date) = currentYear
+                           GROUP BY definitiva.Sales_channel
+                           ORDER BY definitiva.Sales_channel;
 BEGIN
     IF (years = 0) THEN
         RAISE WARNING 'La cantidad de años debe ser mayor a 0';
         RETURN;
     end if;
 
-    SELECT min(extract(year FROM definitiva.Sales_Date))
+    SELECT min(extract(year FROM definitiva.Sales_date))
     INTO currentYear
     FROM definitiva;
 
-    RAISE NOTICE '      HISTORIC SALES REPORT       ';
-    RAISE NOTICE 'YEAR      CATEGORY        REVENUE     COST        MARGIN';--2 TAB ENTRE COLUMNAS
+    RAISE NOTICE '-----------------------HISTORIC SALES REPORT----------------------------';
+    RAISE NOTICE '------------------------------------------------------------------------';
+    RAISE NOTICE 'Year---Category----------------------------------Revenue---Cost---Margin';
+    RAISE NOTICE '------------------------------------------------------------------------';
 
     WHILE(years > 0)
         LOOP
             totalCost := 0;
             totalRevenue := 0;
             totalMargin := 0;
-            flag := TRUE;
+            firstPrint := TRUE;
 
             OPEN customerCursor;
             LOOP
                 FETCH customerCursor INTO i;
                 EXIT WHEN NOT FOUND;
-                IF (flag) THEN
-                    RAISE NOTICE '%      Customer Type: %        %       %       %', currentYear, i.Customer_Type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
-                    flag := FALSE;
+                IF (firstPrint) THEN
+                    PERFORM printInfo(currentYear, 'Customer Type', i.Customer_type, CAST(i.Revenue AS integer),
+                                      CAST(i.Cost AS integer), CAST(i.Margin AS integer));
+                    firstPrint := FALSE;
                 ELSE
-                    RAISE NOTICE '----      Customer Type: %        %       %       %', i.Customer_Type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
+                    PERFORM printInfo(-1, 'Customer Type', i.Customer_type, CAST(i.Revenue AS integer),
+                                      CAST(i.Cost AS integer), CAST(i.Margin AS integer));
                 END IF;
                 totalCost := totalCost + i.Cost;
                 totalRevenue := totalRevenue + i.Revenue;
@@ -187,11 +191,13 @@ BEGIN
             LOOP
                 FETCH productCursor INTO I;
                 EXIT WHEN NOT FOUND;
-                IF (flag) THEN
-                    RAISE NOTICE '%      Product Type: %        %       %       %', currentYear, i.Product_type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
-                    flag := FALSE;
+                IF (firstPrint) THEN
+                    PERFORM printInfo(currentYear, 'Product Type', i.Product_type, CAST(i.Revenue AS integer),
+                                      CAST(i.Cost AS integer), CAST(i.Margin AS integer));
+                    firstPrint := FALSE;
                 ELSE
-                    RAISE NOTICE '----      Product Type: %        %       %       %', i.Product_type, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
+                    PERFORM printInfo(-1, 'Product Type', i.Product_type, CAST(i.Revenue AS integer),
+                                      CAST(i.Cost AS integer), CAST(i.Margin AS integer));
                 END IF;
 
             END LOOP;
@@ -201,20 +207,38 @@ BEGIN
             LOOP
                 FETCH salesCursor INTO I;
                 EXIT WHEN NOT FOUND;
-                IF (flag) THEN
-                    RAISE NOTICE '%      Sales Channel: %        %       %       %', currentYear, i.Sales_Channel, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
-                    flag := FALSE;
+                IF (firstPrint) THEN
+                    PERFORM printInfo(currentYear, 'Sales Channel', i.Sales_Channel, CAST(i.Revenue AS integer),
+                                      CAST(i.Cost AS integer), CAST(i.Margin AS integer));
+                    firstPrint := FALSE;
                 ELSE
-                    RAISE NOTICE '----      Sales Channel: %        %       %       %', i.Sales_Channel, CAST(i.Revenue AS integer), CAST(i.Cost AS integer), CAST(i.Margin AS integer);
+                    PERFORM printInfo(-1, 'Sales Channel', i.Sales_Channel, CAST(i.Revenue AS integer),
+                                      CAST(i.Cost AS integer), CAST(i.Margin AS integer));
                 END IF;
 
             END LOOP;
             CLOSE salesCursor;
 
-            RAISE NOTICE '----       %       %       %',CAST(totalRevenue AS integer),CAST(totalCost AS integer), CAST(totalMargin AS integer);
+            RAISE NOTICE '-------------------------------      %   %   %',CAST(totalRevenue AS integer),CAST(totalCost AS integer), CAST(totalMargin AS integer);
+            RAISE NOTICE '------------------------------------------------------------------------';
             years := years - 1;
             currentYear := currentYear + 1;
         END LOOP;
+    RETURN;
+END;
+$$ LANGUAGE plpgsql
+    RETURNS NULL ON NULL INPUT;
+
+
+CREATE OR REPLACE FUNCTION printInfo(IN year INTEGER, IN category TEXT, IN categoryType TEXT, IN revenue INTEGER,
+                                     IN cost INTEGER, IN margin INTEGER) RETURNS VOID AS
+$$
+BEGIN
+    IF (year <> -1) THEN
+        RAISE NOTICE '%  %: %    %   %   %', year, category, categoryType, revenue, cost, margin;
+    ELSE
+        RAISE NOTICE '----  %: %    %   %   %', category, categoryType, revenue, cost, margin;
+    END IF;
     RETURN;
 END;
 $$ LANGUAGE plpgsql
@@ -229,5 +253,6 @@ DROP TABLE definitiva;
 DROP FUNCTION MedianaMargenMovil(date DATE, months INTEGER);
 DROP FUNCTION ReporteVentas(years INTEGER);
 DROP FUNCTION fillTable;
+DROP FUNCTION printInfo;
 --------
 DROP TRIGGER fillTableTrigger ON intermedia;
