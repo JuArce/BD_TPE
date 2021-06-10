@@ -67,14 +67,6 @@ CREATE TRIGGER fillTableTrigger
 EXECUTE PROCEDURE fillTable();
 --------------------------------------
 
--- Copy
-
-COPY intermedia (Quarter, Month, Week, Product_type, Territory, Sales_channel, Customer_type, Revenue, Cost)
-    FROM '/Users/roberto-j-catalan/Base de Datos 1/BD_TPE/SalesbyRegion.csv'
-    DELIMITER ','
-    CSV HEADER;
---------------------------------------
-
 --Funciones
 
 CREATE OR REPLACE FUNCTION MedianaMargenMovil(IN date DATE, IN months INTEGER) RETURNS NUMERIC AS
@@ -244,14 +236,14 @@ SELECT ReporteVentas(3);
 
 -- Drops
 
-DROP TABLE intermedia;
-DROP TABLE definitiva;
+DROP TABLE IF EXISTS intermedia;
+DROP TABLE IF EXISTS definitiva;
 --------
-DROP TRIGGER fillTableTrigger ON intermedia;
+DROP TRIGGER IF EXISTS fillTableTrigger ON intermedia;
 --------
-DROP FUNCTION MedianaMargenMovil(date DATE, months INTEGER);
-DROP FUNCTION ReporteVentas(years INTEGER);
-DROP FUNCTION fillTable;
-DROP FUNCTION printInfo;
-DROP FUNCTION executeCursor;
+DROP FUNCTION IF EXISTS MedianaMargenMovil(date DATE, months INTEGER);
+DROP FUNCTION IF EXISTS ReporteVentas(years INTEGER);
+DROP FUNCTION IF EXISTS fillTable;
+DROP FUNCTION IF EXISTS printInfo;
+DROP FUNCTION IF EXISTS executeCursor;
 --------------------------------------
