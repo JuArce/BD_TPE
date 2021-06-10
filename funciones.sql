@@ -32,11 +32,12 @@ CREATE TABLE definitiva
 CREATE OR REPLACE FUNCTION fillTable() RETURNS TRIGGER AS
 $$
 DECLARE
-    auxYear  text;
-    auxMonth text;
-    auxDay   text;
-    auxDate  date;
-    auxStr   text;
+    auxYear  TEXT;
+    auxMonth TEXT;
+    auxDay   TEXT;
+    auxDate  DATE;
+    auxStr   TEXT;
+
 BEGIN
     auxYear := split_part(new.Quarter, '/', 2);
     auxMonth := split_part(new.Month, '-', 2);
@@ -92,19 +93,6 @@ BEGIN
     RETURN media;
 END;
 $$ LANGUAGE plpgsql;
-
-
--- Debe dar 1067.33
-SELECT MedianaMargenMovil(to_date('2012-11-01', 'YYYY-MM-DD'), 3);
-
--- Debe dar 1096.4
-SELECT MedianaMargenMovil(to_date('2012-11-01', 'YYYY-MM-DD'), 4);
-
--- Debe dar 1155.5
-SELECT MedianaMargenMovil(to_date('2011-09-01', 'YYYY-MM-DD'), 5);
-
--- Debe dar mensaje de error
-SELECT MedianaMargenMovil(to_date('2012-11-01', 'YYYY-MM-DD'), 0);
 
 
 CREATE OR REPLACE FUNCTION ReporteVentas(IN years INTEGER) RETURNS VOID AS
@@ -231,7 +219,6 @@ END;
 $$ LANGUAGE plpgsql
     RETURNS NULL ON NULL INPUT;
 
-SELECT ReporteVentas(3);
 --------------------------------------
 
 -- Drops
